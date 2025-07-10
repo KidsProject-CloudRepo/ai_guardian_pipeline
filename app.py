@@ -18,7 +18,7 @@ def load_models():
 
 emotion_model, sentiment_model = load_models()
 
-mode = st.selectbox("Select Input Mode:", ["Text", "Audio (Upload)", "Audio (Mic)"])
+mode = st.selectbox("Select Input Mode:", ["Text", "Audio (Upload)", "Audio (Mic)","Video"])
 
 if mode == "Text":
     text_input = st.text_area("Enter text to analyze:")
