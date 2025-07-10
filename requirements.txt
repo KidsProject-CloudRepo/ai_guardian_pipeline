@@ -2,7 +2,7 @@ streamlit
 transformers
 torch
 fer
-opencv-python-headless
+opencv-python
 pandas
 altair
 speechrecognition
