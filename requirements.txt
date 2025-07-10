@@ -1,9 +1,8 @@
 streamlit
 transformers
 torch
-fer
-opencv-python
 pandas
 altair
+opencv-python-headless
+Pillow
 speechrecognition
-pyttsx3
