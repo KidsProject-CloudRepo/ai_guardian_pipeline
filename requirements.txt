@@ -3,6 +3,8 @@ transformers
 torch
 pandas
 altair
-opencv-python
+opencv-python-headless
+torch
 Pillow
 speechrecognition
+fer
