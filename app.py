@@ -46,7 +46,46 @@ elif mode == "Audio (Upload)":
                 st.success(f"🎧 Detected Emotion from Audio: **{emotion}**")
             except Exception as e:
                 st.error(f"Speech Recognition Error: {str(e)}")
-
+elif mode == "Video":
+    uploaded_video = st.file_uploader("Upload a video", type=["mp4", "mov", "avi"])
+    if uploaded_video:
+        tfile = tempfile.NamedTemporaryFile(delete=False)
+        tfile.write(uploaded_video.read())
+        video_path = tfile.name
+        st.video(video_path)
+        if st.button("Analyze Video"):
+            cap = cv2.VideoCapture(video_path)
+            frame_count = 0
+            emotion_log = {}
+            st.info("Processing video, this may take a moment...")
+            while cap.isOpened():
+                ret, frame = cap.read()
+                if not ret or frame_count > 100:
+                    break
+                try:
+                    if frame_count % 10 == 0:
+                        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        pil_image = Image.fromarray(rgb_frame)
+                        preds = image_emotion_model(pil_image)
+                        emotion = preds[0]["label"]
+                        emotion_log[frame_count] = emotion
+                except Exception:
+                    emotion_log[frame_count] = "error"
+                frame_count += 1
+            cap.release()
+            st.success("Video processing complete!")
+            st.write("Sample Detected Emotions:")
+            st.json(emotion_log)
+            df = pd.DataFrame(list(emotion_log.items()), columns=["Frame", "Emotion"])
+            df["Frame"] = df["Frame"].astype(int)
+            chart = alt.Chart(df).mark_bar().encode(
+                x=alt.X("Frame:O", title="Frame Number"),
+                y=alt.Y("count():Q", title="Emotion Count"),
+                color="Emotion:N",
+                tooltip=["Frame", "Emotion"]
+            ).properties(title="📊 Detected Emotions Across Video Frames", width=600, height=300)
+            st.altair_chart(chart, use_container_width=True)
+            
 elif mode == "Audio (Mic)":
     st.write("🎙️ Click the button and speak after the prompt appears.")
     if st.button("Record from Mic and Analyze"):
