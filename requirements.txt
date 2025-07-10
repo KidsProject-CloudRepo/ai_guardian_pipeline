@@ -6,3 +6,4 @@ altair
 opencv-python-headless
 Pillow
 speechrecognition
+fer
