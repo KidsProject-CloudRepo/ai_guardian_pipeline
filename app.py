@@ -1,103 +1,31 @@
 import streamlit as st
 from transformers import pipeline
-from PIL import Image
 import pandas as pd
 import altair as alt
 import tempfile
 import os
-import cv2
-import speech_recognition as sr
 import json
-from fer import FER
+import speech_recognition as sr
 
 st.set_page_config(page_title="AI Guardian – Emotion Detector", layout="centered")
-st.title("😃 AI Guardian – Unified Emotion Detection App (Pipeline Based)")
+st.title("😃 AI Guardian – Unified Emotion Detection App")
 
 @st.cache_resource
 def load_models():
     emotion_model = pipeline("text-classification", model="j-hartmann/emotion-english-distilroberta-base", return_all_scores=False)
     sentiment_model = pipeline("sentiment-analysis", return_all_scores=False)
-    image_emotion_model = pipeline("image-classification", model="nateraw/bert-base-uncased-emotion")
-    return emotion_model, sentiment_model, image_emotion_model
+    return emotion_model, sentiment_model
 
-emotion_model, sentiment_model, image_emotion_model = load_models()
+emotion_model, sentiment_model = load_models()
 
-mode = st.selectbox("Select Input Mode:", ["Text", "Image", "Video", "Audio (Upload)", "Audio (Mic)"])
+mode = st.selectbox("Select Input Mode:", ["Text", "Audio (Upload)", "Audio (Mic)"])
 
 if mode == "Text":
     text_input = st.text_area("Enter text to analyze:")
-    if st.button("Analyze Text"):
-        if text_input:
-            emotion = emotion_model(text_input)[0]["label"]
-            sentiment = sentiment_model(text_input)[0]["label"].lower()
-            if emotion in ["sadness", "anger", "disgust"] and sentiment == "positive":
-                blended = "joy"
-            elif emotion == "joy" and sentiment == "negative":
-                blended = "neutral"
-            else:
-                blended = emotion
-            st.success(f"💬 Emotion: **{emotion}** | Sentiment: **{sentiment}** | Final: **{blended}**")
-
-# Image Mode
-if mode == "Image":
-    uploaded_image = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
-    if uploaded_image:
-        tfile = tempfile.NamedTemporaryFile(delete=False)
-        tfile.write(uploaded_image.read())
-        image_path = tfile.name
-        st.image(image_path, caption="Uploaded Image", use_column_width=True)
-
-        if st.button("Analyze Image"):
-            try:
-                img = cv2.imread(image_path)
-                detector = FER(mtcnn=True)  # Set mtcnn=False if slow
-                emotion, score = detector.top_emotion(img)
-                st.success(f"🖼️ Detected Emotion: **{emotion}** with confidence {score:.2f}")
-            except Exception as e:
-                st.error(f"Error: {str(e)}")
-
-
-elif mode == "Video":
-    uploaded_video = st.file_uploader("Upload a video", type=["mp4", "mov", "avi"])
-    if uploaded_video:
-        tfile = tempfile.NamedTemporaryFile(delete=False)
-        tfile.write(uploaded_video.read())
-        video_path = tfile.name
-        st.video(video_path)
-
-        if st.button("Analyze Video"):
-            cap = cv2.VideoCapture(video_path)
-            detector = FER(mtcnn=True)
-            frame_count = 0
-            emotion_log = {}
-
-            st.info("Processing video...")
-
-            while cap.isOpened():
-                ret, frame = cap.read()
-                if not ret or frame_count > 100:
-                    break
-                try:
-                    emotion, score = detector.top_emotion(frame)
-                    emotion_log[frame_count] = emotion if emotion else "no face"
-                except:
-                    emotion_log[frame_count] = "error"
-                frame_count += 10
-                cap.set(cv2.CAP_PROP_POS_FRAMES, frame_count)
-
-            cap.release()
-            st.success("Video processed!")
-            st.json(emotion_log)
-
-            df = pd.DataFrame(list(emotion_log.items()), columns=["Frame", "Emotion"])
-            df["Frame"] = df["Frame"].astype(int)
-            chart = alt.Chart(df).mark_bar().encode(
-                x=alt.X("Frame:O", title="Frame Number"),
-                y=alt.Y("count():Q", title="Emotion Count"),
-                color="Emotion:N",
-                tooltip=["Frame", "Emotion"]
-            ).properties(title="📊 Detected Emotions Across Video Frames", width=600, height=300)
-            st.altair_chart(chart, use_container_width=True)
+    if st.button("Analyze Text") and text_input:
+        emotion = emotion_model(text_input)[0]["label"]
+        sentiment = sentiment_model(text_input)[0]["label"].lower()
+        st.success(f"💬 Emotion: **{emotion}** | Sentiment: **{sentiment}**")
 
 elif mode == "Audio (Upload)":
     uploaded_audio = st.file_uploader("Upload an audio file", type=["wav", "mp3", "m4a"])
