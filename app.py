@@ -9,8 +9,6 @@ import cv2
 import speech_recognition as sr
 import json
 
-from fer import FER
-
 st.set_page_config(page_title="AI Guardian – Emotion Detector", layout="centered")
 st.title("😃 AI Guardian – Unified Emotion Detection App (Pipeline Based)")
 
@@ -39,21 +37,19 @@ if mode == "Text":
                 blended = emotion
             st.success(f"💬 Emotion: **{emotion}** | Sentiment: **{sentiment}** | Final: **{blended}**")
 
-# Image Mode
-if mode == "Image":
+elif mode == "Image":
     uploaded_image = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
     if uploaded_image:
         tfile = tempfile.NamedTemporaryFile(delete=False)
         tfile.write(uploaded_image.read())
         image_path = tfile.name
         st.image(image_path, caption="Uploaded Image", use_column_width=True)
-
         if st.button("Analyze Image"):
             try:
-                img = cv2.imread(image_path)
-                detector = FER(mtcnn=True)  # Set mtcnn=False if slow
-                emotion, score = detector.top_emotion(img)
-                st.success(f"🖼️ Detected Emotion: **{emotion}** with confidence {score:.2f}")
+                image = Image.open(image_path).convert("RGB")
+                predictions = image_emotion_model(image)
+                top_pred = predictions[0]
+                st.success(f"🖼️ Detected Emotion: **{top_pred['label']}** ({top_pred['score']:.2f})")
             except Exception as e:
                 st.error(f"Error: {str(e)}")
 
@@ -64,31 +60,29 @@ elif mode == "Video":
         tfile.write(uploaded_video.read())
         video_path = tfile.name
         st.video(video_path)
-
         if st.button("Analyze Video"):
             cap = cv2.VideoCapture(video_path)
-            detector = FER(mtcnn=True)
             frame_count = 0
             emotion_log = {}
-
-            st.info("Processing video...")
-
+            st.info("Processing video, this may take a moment...")
             while cap.isOpened():
                 ret, frame = cap.read()
                 if not ret or frame_count > 100:
                     break
                 try:
-                    emotion, score = detector.top_emotion(frame)
-                    emotion_log[frame_count] = emotion if emotion else "no face"
-                except:
+                    if frame_count % 10 == 0:
+                        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        pil_image = Image.fromarray(rgb_frame)
+                        preds = image_emotion_model(pil_image)
+                        emotion = preds[0]["label"]
+                        emotion_log[frame_count] = emotion
+                except Exception:
                     emotion_log[frame_count] = "error"
-                frame_count += 10
-                cap.set(cv2.CAP_PROP_POS_FRAMES, frame_count)
-
+                frame_count += 1
             cap.release()
-            st.success("Video processed!")
+            st.success("Video processing complete!")
+            st.write("Sample Detected Emotions:")
             st.json(emotion_log)
-
             df = pd.DataFrame(list(emotion_log.items()), columns=["Frame", "Emotion"])
             df["Frame"] = df["Frame"].astype(int)
             chart = alt.Chart(df).mark_bar().encode(
