@@ -1,0 +1,8 @@
+streamlit
+transformers
+torch
+pandas
+altair
+opencv-python-headless
+Pillow
+speechrecognition
